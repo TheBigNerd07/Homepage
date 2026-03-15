@@ -2,8 +2,15 @@ import type {
   ActionResult,
   AuthStatus,
   BackupDownload,
+  CommandRunResult,
+  ControlCenterSummary,
   DashboardSummary,
   DiagnosticsSummary,
+  LogView,
+  Node,
+  NodePayload,
+  Note,
+  NotePayload,
   QuickActionLink,
   QuickActionLinkPayload,
   ReadingHistoryEntry,
@@ -33,12 +40,14 @@ async function request<T>(
   options: RequestInit = {},
   responseType: "json" | "blob" = "json",
 ): Promise<T> {
+  const headers = new Headers(options.headers ?? undefined);
+  if (!(options.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers ?? {}),
-    },
+    headers,
     ...options,
   });
 
@@ -103,6 +112,36 @@ export const api = {
     request<void>(`/services/${serviceId}`, {
       method: "DELETE",
     }),
+  getNodes: () => request<Node[]>("/nodes"),
+  createNode: (payload: NodePayload) =>
+    request<Node>("/nodes", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateNode: (nodeId: number, payload: Partial<NodePayload>) =>
+    request<Node>(`/nodes/${nodeId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deleteNode: (nodeId: number) =>
+    request<void>(`/nodes/${nodeId}`, {
+      method: "DELETE",
+    }),
+  getNotes: (includeArchived = false) => request<Note[]>(`/notes?include_archived=${includeArchived}`),
+  createNote: (payload: NotePayload) =>
+    request<Note>("/notes", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateNote: (noteId: number, payload: Partial<NotePayload>) =>
+    request<Note>(`/notes/${noteId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deleteNote: (noteId: number) =>
+    request<void>(`/notes/${noteId}`, {
+      method: "DELETE",
+    }),
   getQuickActions: () => request<QuickActionLink[]>("/quick-actions"),
   createQuickAction: (payload: QuickActionLinkPayload) =>
     request<QuickActionLink>("/quick-actions", {
@@ -127,7 +166,18 @@ export const api = {
     request<ActionResult>(`/actions/${actionKey}`, {
       method: "POST",
     }),
-  exportBackup: async () => {
+  getControlCenterSummary: () => request<ControlCenterSummary>("/control-center/summary"),
+  runControlAction: (actionKey: string) =>
+    request<ActionResult>(`/control-center/actions/${actionKey}`, {
+      method: "POST",
+    }),
+  runCommand: (commandKey: string) =>
+    request<CommandRunResult>(`/control-center/commands/${commandKey}`, {
+      method: "POST",
+    }),
+  getLogs: (source = "application", lines = 120) =>
+    request<LogView>(`/control-center/logs?source=${encodeURIComponent(source)}&lines=${lines}`),
+  exportBackup: async (): Promise<BackupDownload> => {
     const response = await fetch(`${API_BASE_URL}/backups/export`, {
       method: "POST",
       credentials: "include",
@@ -147,7 +197,7 @@ export const api = {
     return {
       blob: await response.blob(),
       filename: match?.[1] ?? "pione-homepage-backup.zip",
-    } satisfies BackupDownload;
+    };
   },
   getReminders: (scope: "all" | "today" = "all") =>
     request<Reminder[]>(`/reminders?scope=${scope}`),

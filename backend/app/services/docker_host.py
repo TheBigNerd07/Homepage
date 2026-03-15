@@ -30,6 +30,15 @@ class DockerAvailability:
     detail: str | None = None
 
 
+@dataclass(slots=True)
+class DockerContainerSummary:
+    id: str
+    name: str
+    image: str
+    state: str
+    status: str
+
+
 _CACHE_LOCK = Lock()
 _CACHE_TTL_SECONDS = 15
 _SUMMARY_CACHE: tuple[float, DockerAvailability] | None = None
@@ -110,3 +119,52 @@ def restart_container(container_name: str, *, timeout_seconds: int = 10) -> tupl
         get_docker_availability(force=True)
         return True, f"Restart request sent for {container_name}."
     return False, f"Docker API returned {status_code} while restarting {container_name}."
+
+
+def list_containers() -> list[DockerContainerSummary]:
+    settings = get_settings()
+    if not settings.docker_socket_available:
+        return []
+    try:
+        status_code, payload = _request("GET", "/containers/json?all=1")
+        if status_code >= 400:
+            return []
+        containers = json.loads(payload.decode("utf-8"))
+        return [
+            DockerContainerSummary(
+                id=str(container.get("Id", ""))[:12],
+                name=str((container.get("Names") or [""])[0]).lstrip("/"),
+                image=str(container.get("Image", "")),
+                state=str(container.get("State", "")),
+                status=str(container.get("Status", "")),
+            )
+            for container in containers
+        ]
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def restart_containers(container_names: list[str], *, timeout_seconds: int = 10) -> tuple[bool, str]:
+    if not container_names:
+        return False, "No restart targets configured."
+    failures: list[str] = []
+    for container_name in container_names:
+        success, message = restart_container(container_name, timeout_seconds=timeout_seconds)
+        if not success:
+            failures.append(message)
+    if failures:
+        return False, "; ".join(failures)
+    return True, f"Restart request sent for {', '.join(container_names)}."
+
+
+def get_container_logs(container_name: str, *, tail: int = 120) -> list[str]:
+    try:
+        status_code, payload = _request(
+            "GET",
+            f"/containers/{quote(container_name, safe='')}/logs?stdout=1&stderr=1&tail={max(tail, 1)}",
+        )
+        if status_code >= 400:
+            return [f"Docker API returned {status_code} while reading logs."]
+        return payload.decode("utf-8", errors="replace").splitlines()
+    except OSError as exc:
+        return [f"Unable to read container logs: {exc}"]

@@ -28,6 +28,7 @@ class ServiceBase(BaseModel):
     open_in_new_tab: bool = True
     manual_status: str = "unknown"
     tags: list[str] = Field(default_factory=list)
+    node_id: int | None = Field(default=None, ge=1)
     is_enabled: bool = True
     is_favorite: bool = False
     health_check_url: str | None = None
@@ -57,6 +58,22 @@ class ServiceBase(BaseModel):
     def validate_status(cls, value: str) -> str:
         return _normalize_status(value)
 
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, values: list[str]) -> list[str]:
+        cleaned: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            item = value.strip()
+            normalized = item.casefold()
+            if not item or normalized in seen:
+                continue
+            if len(item) > 40:
+                raise ValueError("Tags must be 40 characters or fewer.")
+            seen.add(normalized)
+            cleaned.append(item)
+        return cleaned
+
 
 class ServiceCreate(ServiceBase):
     pass
@@ -71,6 +88,7 @@ class ServiceUpdate(BaseModel):
     open_in_new_tab: bool | None = None
     manual_status: str | None = None
     tags: list[str] | None = None
+    node_id: int | None = Field(default=None, ge=1)
     is_enabled: bool | None = None
     is_favorite: bool | None = None
     health_check_url: str | None = None
@@ -110,6 +128,8 @@ class ServiceRead(ServiceBase):
     id: int
     sort_order: int
     status: str
+    node_name: str | None = None
+    node_hostname: str | None = None
     last_checked_at: datetime | None = None
     last_response_time_ms: int | None = None
     last_http_status: int | None = None

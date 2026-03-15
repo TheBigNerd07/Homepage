@@ -37,12 +37,15 @@ class HostMonitor:
         self._sample: _HostSample | None = None
 
     def _read_proc_stat(self) -> tuple[int, int]:
-        with open("/proc/stat", "r", encoding="utf-8") as handle:
-            values = handle.readline().split()[1:]
-        numbers = [int(value) for value in values]
-        total = sum(numbers)
-        idle = numbers[3] + (numbers[4] if len(numbers) > 4 else 0)
-        return total, idle
+        try:
+            with open("/proc/stat", "r", encoding="utf-8") as handle:
+                values = handle.readline().split()[1:]
+            numbers = [int(value) for value in values]
+            total = sum(numbers)
+            idle = numbers[3] + (numbers[4] if len(numbers) > 4 else 0)
+            return total, idle
+        except (FileNotFoundError, ValueError, IndexError):
+            return 0, 0
 
     def _read_meminfo(self) -> MemoryStats:
         try:
@@ -180,6 +183,9 @@ def build_system_summary(
     reminders_due_today: int,
     reminders_completed_today: int,
     scripture_percent_complete: float,
+    cpu_trend: list | None = None,
+    memory_trend: list | None = None,
+    disk_trend: list | None = None,
 ) -> SystemSummary:
     settings = get_settings()
     sample = _HOST_MONITOR.get_snapshot()
@@ -214,4 +220,7 @@ def build_system_summary(
         reminders_completed_today=reminders_completed_today,
         scripture_percent_complete=scripture_percent_complete,
         last_updated_at=sample.collected_at,
+        cpu_trend=cpu_trend or [],
+        memory_trend=memory_trend or [],
+        disk_trend=disk_trend or [],
     )

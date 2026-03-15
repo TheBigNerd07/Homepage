@@ -1,36 +1,45 @@
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { ExternalLink, Heart, Search } from "lucide-react";
-import type { Service } from "../types";
+import type { Node, Service, SettingsData } from "../types";
 import { iconForName } from "../lib/icons";
 import { Card } from "./Card";
 import { StatusBadge } from "./StatusBadge";
 
-function groupServices(services: Service[]) {
+type StatusFilter = "all" | "online" | "degraded" | "offline" | "unknown";
+type GroupingMode = "category" | "node" | "favorites";
+
+interface ServiceLauncherProps {
+  services: Service[];
+  nodes: Node[];
+  settings: Pick<SettingsData, "density_mode" | "service_grouping">;
+}
+
+function buildGroups(services: Service[], groupingMode: GroupingMode) {
   return services.reduce<Record<string, Service[]>>((groups, service) => {
-    const key = service.category || "General";
+    const key =
+      groupingMode === "node"
+        ? service.node_name || "Unassigned"
+        : groupingMode === "favorites"
+          ? service.is_favorite
+            ? "Favorites"
+            : "Other Services"
+          : service.category || "General";
     groups[key] = groups[key] ?? [];
     groups[key].push(service);
     return groups;
   }, {});
 }
 
-type StatusFilter = "all" | "online" | "degraded" | "offline" | "unknown";
-
-interface ServiceLauncherProps {
-  services: Service[];
-  densityMode: "comfortable" | "compact";
-}
-
-export function ServiceLauncher({ services, densityMode }: ServiceLauncherProps) {
+export function ServiceLauncher({ services, nodes, settings }: ServiceLauncherProps) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [groupingMode, setGroupingMode] = useState<GroupingMode>(settings.service_grouping);
+  const [nodeFilter, setNodeFilter] = useState("all");
   const deferredQuery = useDeferredValue(query);
 
-  const categories = useMemo(
-    () => ["all", ...new Set(services.filter((service) => service.is_enabled).map((service) => service.category))],
-    [services],
-  );
+  useEffect(() => {
+    setGroupingMode(settings.service_grouping);
+  }, [settings.service_grouping]);
 
   const filteredServices = useMemo(() => {
     const normalized = deferredQuery.trim().toLowerCase();
@@ -41,29 +50,28 @@ export function ServiceLauncher({ services, densityMode }: ServiceLauncherProps)
       if (statusFilter !== "all" && service.status !== statusFilter) {
         return false;
       }
-      if (categoryFilter !== "all" && service.category !== categoryFilter) {
+      if (nodeFilter !== "all" && String(service.node_id ?? "unassigned") !== nodeFilter) {
         return false;
       }
       if (!normalized) {
-        return true;
+        return groupingMode !== "favorites" || service.is_favorite;
       }
-      const haystack = [service.name, service.description, service.category, ...(service.tags ?? [])]
+      const haystack = [
+        service.name,
+        service.description,
+        service.category,
+        service.node_name ?? "",
+        ...(service.tags ?? []),
+      ]
         .join(" ")
         .toLowerCase();
-      return haystack.includes(normalized);
+      return haystack.includes(normalized) && (groupingMode !== "favorites" || service.is_favorite);
     });
-  }, [categoryFilter, deferredQuery, services, statusFilter]);
+  }, [deferredQuery, groupingMode, nodeFilter, services, statusFilter]);
 
-  const favorites = useMemo(
-    () => filteredServices.filter((service) => service.is_favorite),
-    [filteredServices],
-  );
-  const grouped = useMemo(
-    () => groupServices(filteredServices.filter((service) => !service.is_favorite)),
-    [filteredServices],
-  );
+  const grouped = useMemo(() => buildGroups(filteredServices, groupingMode), [filteredServices, groupingMode]);
 
-  const cardPadding = densityMode === "compact" ? "p-4" : "p-5";
+  const cardPadding = settings.density_mode === "compact" ? "p-4" : "p-5";
 
   function ServiceCard({ service }: { service: Service }) {
     const Icon = iconForName(service.icon);
@@ -91,6 +99,11 @@ export function ServiceLauncher({ services, densityMode }: ServiceLauncherProps)
           <ExternalLink className="h-4 w-4 text-slate-500 transition group-hover:text-accent/80" />
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
+          {service.node_name ? (
+            <span className="rounded-full border border-accent/20 bg-accent/10 px-2.5 py-1 text-[0.7rem] uppercase tracking-[0.16em] text-accent/80">
+              {service.node_name}
+            </span>
+          ) : null}
           {service.tags.map((tag) => (
             <span
               key={tag}
@@ -103,8 +116,8 @@ export function ServiceLauncher({ services, densityMode }: ServiceLauncherProps)
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
           <span>{service.has_health_check ? "Active check" : "Manual status"}</span>
           <span>
-            {service.last_response_time_ms !== null
-              ? `${service.last_response_time_ms} ms`
+            {service.last_checked_at
+              ? `Checked ${new Date(service.last_checked_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
               : service.status_reason || "No recent sample"}
           </span>
         </div>
@@ -115,7 +128,7 @@ export function ServiceLauncher({ services, densityMode }: ServiceLauncherProps)
   return (
     <Card
       title="Service Launcher"
-      eyebrow={`${filteredServices.length} services ready`}
+      eyebrow={`${filteredServices.length} services visible`}
       action={
         <div className="flex w-full flex-col gap-3 xl:flex-row xl:items-center xl:justify-end">
           <div className="relative w-full xl:max-w-xs">
@@ -137,51 +150,40 @@ export function ServiceLauncher({ services, densityMode }: ServiceLauncherProps)
         </div>
       }
     >
-      <div className="mb-5 flex flex-wrap gap-2">
-        {categories.map((category) => (
-          <button
-            key={category}
-            type="button"
-            className={`rounded-full px-3 py-1.5 text-xs uppercase tracking-[0.18em] transition ${
-              categoryFilter === category
-                ? "border border-accent/25 bg-accent/10 text-white"
-                : "border border-white/10 bg-white/[0.04] text-slate-400 hover:text-slate-200"
-            }`}
-            onClick={() => setCategoryFilter(category)}
-          >
-            {category === "all" ? "All categories" : category}
-          </button>
-        ))}
-      </div>
-
-      {favorites.length ? (
-        <div className="mb-6">
-          <div className="mb-3 flex items-center justify-between gap-4">
-            <div className="label">Favorites</div>
-            <span className="text-xs text-slate-400">{favorites.length} pinned</span>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {favorites.map((service) => (
-              <ServiceCard key={service.id} service={service} />
-            ))}
-          </div>
+      <div className="mb-5 grid gap-3 md:grid-cols-3">
+        <select className="input" value={groupingMode} onChange={(event) => setGroupingMode(event.target.value as GroupingMode)}>
+          <option value="category">Group by category</option>
+          <option value="node">Group by node</option>
+          <option value="favorites">Favorites only</option>
+        </select>
+        <select className="input" value={nodeFilter} onChange={(event) => setNodeFilter(event.target.value)}>
+          <option value="all">All nodes</option>
+          <option value="unassigned">Unassigned</option>
+          {nodes.map((node) => (
+            <option key={node.id} value={String(node.id)}>
+              {node.name}
+            </option>
+          ))}
+        </select>
+        <div className="rounded-2xl border border-white/8 bg-slate-950/30 px-4 py-3 text-sm text-slate-300">
+          Default grouping: <span className="font-medium text-white">{settings.service_grouping}</span>
         </div>
-      ) : null}
+      </div>
 
       {Object.keys(grouped).length ? (
         <div className="space-y-6">
           {Object.keys(grouped)
             .sort()
-            .map((category) => (
-              <div key={category}>
+            .map((group) => (
+              <div key={group}>
                 <div className="mb-3 flex items-center justify-between gap-4">
-                  <div className="label">{category}</div>
+                  <div className="label">{group}</div>
                   <span className="text-xs text-slate-400">
-                    {grouped[category].length} card{grouped[category].length === 1 ? "" : "s"}
+                    {grouped[group].length} service{grouped[group].length === 1 ? "" : "s"}
                   </span>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {grouped[category].map((service) => (
+                  {grouped[group].map((service) => (
                     <ServiceCard key={service.id} service={service} />
                   ))}
                 </div>

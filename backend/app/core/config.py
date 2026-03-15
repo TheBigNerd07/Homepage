@@ -7,11 +7,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "PiOne Command Center"
-    app_version: str = "2.0.0"
+    app_version: str = "3.0.0"
     environment: str = "production"
     api_prefix: str = "/api"
     database_path: str = "/data/pione-homepage.db"
     backup_dir: str | None = "/backups"
+    app_log_path: str = "/data/logs/pione-homepage.log"
     app_timezone: str = "America/Los_Angeles"
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
     lab_hostname: str = "PiOne"
@@ -34,7 +35,12 @@ class Settings(BaseSettings):
 
     docker_socket_path: str = "/var/run/docker.sock"
     app_container_name: str | None = None
+    stack_restart_container_names: str = ""
     service_monitor_tick_seconds: int = 20
+    metric_sample_interval_seconds: int = 300
+    metric_sample_retention_count: int = 288
+    control_recent_history_limit: int = 20
+    unsafe_terminal_enabled: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -55,6 +61,10 @@ class Settings(BaseSettings):
         if not self.backup_dir:
             return None
         return Path(self.backup_dir)
+
+    @property
+    def app_log_file(self) -> Path:
+        return Path(self.app_log_path)
 
     @property
     def public_origin(self) -> str | None:
@@ -100,10 +110,20 @@ class Settings(BaseSettings):
     def docker_socket_available(self) -> bool:
         return Path(self.docker_socket_path).exists()
 
+    @property
+    def stack_restart_targets(self) -> list[str]:
+        values = [value.strip() for value in self.stack_restart_container_names.split(",") if value.strip()]
+        if values:
+            return values
+        if self.app_container_name:
+            return [self.app_container_name]
+        return []
+
     def ensure_storage(self) -> None:
         self.database_file.parent.mkdir(parents=True, exist_ok=True)
         if self.backup_dir_path is not None:
             self.backup_dir_path.mkdir(parents=True, exist_ok=True)
+        self.app_log_file.parent.mkdir(parents=True, exist_ok=True)
 
     def validate_runtime(self) -> None:
         if not self.auth_enabled:

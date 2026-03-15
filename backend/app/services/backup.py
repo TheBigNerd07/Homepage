@@ -11,10 +11,24 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.time import utc_now
-from app.models import AppSetting, BackupRecord, QuickActionLink, Reminder, ScriptureChapter, ServiceLink
+from app.models import (
+    ActionHistoryEntry,
+    AppSetting,
+    BackupRecord,
+    LabNode,
+    MetricSample,
+    Note,
+    QuickActionLink,
+    Reminder,
+    ScriptureChapter,
+    ServiceLink,
+)
+from app.schemas.node import NodeSummaryRead
+from app.schemas.note import NoteRead
 from app.schemas.quick_action import QuickActionLinkRead
 from app.schemas.service import ServiceRead
 from app.schemas.settings import SettingRead
+from app.services.nodes import build_node_summaries
 from app.services.quick_actions import list_quick_action_links
 from app.services.reminders import list_reminders
 from app.services.scripture import get_progress, list_chapters
@@ -53,6 +67,14 @@ def create_backup_archive(session: Session) -> BackupExportResult:
     quick_actions = session.execute(
         select(QuickActionLink).order_by(QuickActionLink.sort_order.asc(), QuickActionLink.name.asc())
     ).scalars().all()
+    nodes = session.execute(select(LabNode).order_by(LabNode.sort_order.asc(), LabNode.name.asc())).scalars().all()
+    notes = session.execute(select(Note).order_by(Note.sort_order.asc(), Note.updated_at.desc())).scalars().all()
+    action_history = session.execute(
+        select(ActionHistoryEntry).order_by(ActionHistoryEntry.created_at.desc()).limit(50)
+    ).scalars().all()
+    metric_samples = session.execute(
+        select(MetricSample).order_by(MetricSample.recorded_at.desc()).limit(100)
+    ).scalars().all()
 
     zip_name = f"pione-homepage-backup-{timestamp}.zip"
     zip_path = temp_root / zip_name
@@ -67,8 +89,16 @@ def create_backup_archive(session: Session) -> BackupExportResult:
             _json_bytes([ServiceRead.model_validate(service).model_dump(mode="json") for service in services]),
         )
         archive.writestr(
+            "exports/nodes.json",
+            _json_bytes([node.model_dump(mode="json") for node in build_node_summaries(session, services)]),
+        )
+        archive.writestr(
             "exports/reminders.json",
             _json_bytes([reminder.model_dump(mode="json") for reminder in reminder_export]),
+        )
+        archive.writestr(
+            "exports/notes.json",
+            _json_bytes([NoteRead.model_validate(note).model_dump(mode="json") for note in notes]),
         )
         archive.writestr(
             "exports/scripture-progress.json",
@@ -81,6 +111,45 @@ def create_backup_archive(session: Session) -> BackupExportResult:
         archive.writestr(
             "exports/quick-actions.json",
             _json_bytes([QuickActionLinkRead.model_validate(action).model_dump(mode="json") for action in quick_actions]),
+        )
+        archive.writestr(
+            "exports/action-history.json",
+            _json_bytes(
+                [
+                    {
+                        "created_at": entry.created_at.isoformat(),
+                        "entry_type": entry.entry_type,
+                        "action_key": entry.action_key,
+                        "title": entry.title,
+                        "category": entry.category,
+                        "status": entry.status,
+                        "output": entry.output,
+                        "duration_ms": entry.duration_ms,
+                    }
+                    for entry in action_history
+                ]
+            ),
+        )
+        archive.writestr(
+            "exports/metric-samples.json",
+            _json_bytes(
+                [
+                    {
+                        "recorded_at": sample.recorded_at.isoformat(),
+                        "node_id": sample.node_id,
+                        "cpu_usage_percent": float(sample.cpu_usage_percent) if sample.cpu_usage_percent is not None else None,
+                        "memory_used_percent": float(sample.memory_used_percent) if sample.memory_used_percent is not None else None,
+                        "disk_used_percent": float(sample.disk_used_percent) if sample.disk_used_percent is not None else None,
+                        "online_service_count": sample.online_service_count,
+                        "degraded_service_count": sample.degraded_service_count,
+                        "offline_service_count": sample.offline_service_count,
+                        "reminder_open_count": sample.reminder_open_count,
+                        "reading_percent_complete": float(sample.reading_percent_complete) if sample.reading_percent_complete is not None else None,
+                        "reading_streak": sample.reading_streak,
+                    }
+                    for sample in metric_samples
+                ]
+            ),
         )
         archive.writestr(
             "metadata/export.json",

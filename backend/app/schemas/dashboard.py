@@ -2,7 +2,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.schemas.common import ChartPoint
+from app.schemas.control_center import ControlItemRead
 from app.schemas.navidrome import NavidromeWidgetRead
+from app.schemas.node import NodeSummaryRead
+from app.schemas.note import NoteRead
 from app.schemas.quick_action import DashboardActionRead
 from app.schemas.reminder import ReminderRead
 from app.schemas.scripture import ScriptureProgressRead
@@ -61,6 +65,9 @@ class SystemSummary(BaseModel):
     reminders_completed_today: int
     scripture_percent_complete: float
     last_updated_at: datetime | None = None
+    cpu_trend: list[ChartPoint] = Field(default_factory=list)
+    memory_trend: list[ChartPoint] = Field(default_factory=list)
+    disk_trend: list[ChartPoint] = Field(default_factory=list)
 
 
 class BriefingQuote(BaseModel):
@@ -78,14 +85,55 @@ class DailyBriefing(BaseModel):
     reading_prompt: str | None = None
     motivational_message: str | None = None
     quote: BriefingQuote | None = None
+    system_status_line: str | None = None
+    scripture_of_the_day: str | None = None
+    widget_summaries: list[str] = Field(default_factory=list)
+
+
+class ServiceAvailabilityRead(BaseModel):
+    service_id: int
+    service_name: str
+    node_name: str | None = None
+    uptime_percent: float
+    recent_statuses: list[str] = Field(default_factory=list)
+    last_checked_at: datetime | None = None
+
+
+class ReadingTrendPoint(BaseModel):
+    date: str
+    completed_count: int
+    percent_complete: float
+    streak: int
+
+
+class DashboardMetricsRead(BaseModel):
+    cpu_trend: list[ChartPoint] = Field(default_factory=list)
+    memory_trend: list[ChartPoint] = Field(default_factory=list)
+    disk_trend: list[ChartPoint] = Field(default_factory=list)
+    reading_trend: list[ReadingTrendPoint] = Field(default_factory=list)
+    service_availability: list[ServiceAvailabilityRead] = Field(default_factory=list)
+
+
+class DashboardDiagnosticsRead(BaseModel):
+    backend_health: str
+    database_status: str
+    last_backup_at: datetime | None = None
+    integrations_available_count: int = 0
+    integrations_total_count: int = 0
+    last_health_check_at: datetime | None = None
 
 
 class DashboardSummary(BaseModel):
     settings: SettingRead
     services: list[ServiceRead]
-    quick_actions: list[DashboardActionRead] = Field(default_factory=list)
+    nodes: list[NodeSummaryRead] = Field(default_factory=list)
+    dashboard_actions: list[DashboardActionRead] = Field(default_factory=list)
+    control_actions: list[ControlItemRead] = Field(default_factory=list)
     reminders: list[ReminderRead]
+    notes: list[NoteRead] = Field(default_factory=list)
     scripture: ScriptureProgressRead
     daily_briefing: DailyBriefing
     system_summary: SystemSummary
+    metrics: DashboardMetricsRead = Field(default_factory=DashboardMetricsRead)
+    diagnostics: DashboardDiagnosticsRead
     navidrome: NavidromeWidgetRead = Field(default_factory=lambda: NavidromeWidgetRead(enabled=False, available=False))

@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import Boolean, DateTime, Integer, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -27,6 +27,7 @@ class ServiceLink(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default=ServiceStatus.UNKNOWN.value)
     manual_status: Mapped[str] = mapped_column(String(20), default=ServiceStatus.UNKNOWN.value)
     tags: Mapped[list[str]] = mapped_column(JSON, default=list)
+    node_id: Mapped[int | None] = mapped_column(ForeignKey("nodes.id", ondelete="SET NULL"), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     is_favorite: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -43,6 +44,7 @@ class ServiceLink(TimestampMixin, Base):
         cascade="all, delete-orphan",
         order_by="ServiceStatusCheck.checked_at.desc()",
     )
+    node: Mapped["LabNode | None"] = relationship(back_populates="services")
 
     @property
     def has_health_check(self) -> bool:

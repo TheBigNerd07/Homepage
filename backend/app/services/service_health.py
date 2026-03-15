@@ -49,7 +49,7 @@ class HealthCheckResult:
 
 def _request_health(url: str, timeout_seconds: int) -> HealthCheckResult:
     started = perf_counter()
-    request = Request(url, headers={"User-Agent": "PiOne-Homepage/2.0"})
+    request = Request(url, headers={"User-Agent": "PiOne-Homepage/3.0"})
     try:
         with urlopen(request, timeout=timeout_seconds) as response:
             response.read(1)
@@ -184,6 +184,11 @@ class ServiceHealthMonitor:
         while not self._stop_event.is_set():
             try:
                 await asyncio.to_thread(run_due_health_checks)
+                from app.services.nodes import run_due_node_checks
+                from app.services.telemetry import record_metric_sample
+
+                await asyncio.to_thread(run_due_node_checks)
+                await asyncio.to_thread(record_metric_sample)
             except Exception:
                 logger.exception("Service health monitor iteration failed.")
             try:

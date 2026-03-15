@@ -7,13 +7,17 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.core.auth import require_authenticated_request
 from app.core.config import get_settings
+from app.core.logging import configure_logging
 from app.db.bootstrap import run_migrations
 from app.routers.actions import router as actions_router
 from app.routers.auth import router as auth_router
 from app.routers.backups import router as backups_router
+from app.routers.control_center import router as control_center_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.diagnostics import router as diagnostics_router
 from app.routers.health import router as health_router
+from app.routers.notes import router as notes_router
+from app.routers.nodes import router as nodes_router
 from app.routers.quick_actions import router as quick_actions_router
 from app.routers.reminders import router as reminders_router
 from app.routers.scripture import router as scripture_router
@@ -21,6 +25,7 @@ from app.routers.services import router as services_router
 from app.routers.settings import router as settings_router
 from app.services.service_health import service_health_monitor
 
+configure_logging()
 settings = get_settings()
 
 
@@ -61,8 +66,11 @@ app.include_router(health_router, prefix=settings.api_prefix)
 app.include_router(dashboard_router, prefix=settings.api_prefix, dependencies=protected_dependencies)
 app.include_router(settings_router, prefix=settings.api_prefix, dependencies=protected_dependencies)
 app.include_router(services_router, prefix=settings.api_prefix, dependencies=protected_dependencies)
+app.include_router(nodes_router, prefix=settings.api_prefix, dependencies=protected_dependencies)
+app.include_router(notes_router, prefix=settings.api_prefix, dependencies=protected_dependencies)
 app.include_router(quick_actions_router, prefix=settings.api_prefix, dependencies=protected_dependencies)
 app.include_router(actions_router, prefix=settings.api_prefix, dependencies=protected_dependencies)
+app.include_router(control_center_router, prefix=settings.api_prefix, dependencies=protected_dependencies)
 app.include_router(backups_router, prefix=settings.api_prefix, dependencies=protected_dependencies)
 app.include_router(diagnostics_router, prefix=settings.api_prefix, dependencies=protected_dependencies)
 app.include_router(reminders_router, prefix=settings.api_prefix, dependencies=protected_dependencies)

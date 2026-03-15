@@ -1,11 +1,14 @@
 from sqlalchemy import JSON, Boolean, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.dashboard_defaults import (
+    clone_dashboard_sections,
+    clone_widget_layout,
+    default_favorite_command_keys,
+    default_favorite_widget_ids,
+    default_service_categories,
+)
 from app.db.base import Base, TimestampMixin
-
-
-def default_service_categories() -> list[str]:
-    return ["Operations", "Media", "Observability", "Study", "General"]
 
 
 class AppSetting(TimestampMixin, Base):
@@ -37,3 +40,13 @@ class AppSetting(TimestampMixin, Base):
     service_categories: Mapped[list[str]] = mapped_column(JSON, default=default_service_categories)
     default_status_check_interval_seconds: Mapped[int] = mapped_column(Integer, default=90)
     default_status_check_timeout_seconds: Mapped[int] = mapped_column(Integer, default=3)
+    background_style: Mapped[str] = mapped_column(String(20), default="gradient")
+    mobile_home_mode: Mapped[str] = mapped_column(String(20), default="briefing")
+    service_grouping: Mapped[str] = mapped_column(String(20), default="category")
+    today_focus: Mapped[str] = mapped_column(Text, default="")
+    show_scripture_of_the_day: Mapped[bool] = mapped_column(Boolean, default=True)
+    show_motivational_message: Mapped[bool] = mapped_column(Boolean, default=True)
+    dashboard_sections: Mapped[list[dict[str, object]]] = mapped_column(JSON, default=clone_dashboard_sections)
+    widget_layout: Mapped[list[dict[str, object]]] = mapped_column(JSON, default=clone_widget_layout)
+    favorite_widget_ids: Mapped[list[str]] = mapped_column(JSON, default=default_favorite_widget_ids)
+    favorite_command_keys: Mapped[list[str]] = mapped_column(JSON, default=default_favorite_command_keys)

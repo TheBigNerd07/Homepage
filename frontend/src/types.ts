@@ -1,3 +1,18 @@
+export interface DashboardSectionPreference {
+  id: string;
+  label: string;
+  description: string;
+  enabled: boolean;
+}
+
+export interface WidgetLayoutPreference {
+  widget_id: string;
+  section_id: string;
+  order: number;
+  size: "compact" | "half" | "wide" | "hero";
+  enabled: boolean;
+}
+
 export interface SettingsData {
   id: number;
   dashboard_title: string;
@@ -13,6 +28,22 @@ export interface SettingsData {
   service_categories: string[];
   default_status_check_interval_seconds: number;
   default_status_check_timeout_seconds: number;
+  background_style: "none" | "gradient" | "pattern";
+  mobile_home_mode: "full" | "briefing" | "compact";
+  service_grouping: "category" | "node" | "favorites";
+  today_focus: string;
+  show_scripture_of_the_day: boolean;
+  show_motivational_message: boolean;
+  dashboard_sections: DashboardSectionPreference[];
+  widget_layout: WidgetLayoutPreference[];
+  favorite_widget_ids: string[];
+  favorite_command_keys: string[];
+}
+
+export interface ChartPoint {
+  label: string;
+  value: number | null;
+  timestamp: string | null;
 }
 
 export interface Service {
@@ -26,6 +57,9 @@ export interface Service {
   status: string;
   manual_status: string;
   tags: string[];
+  node_id: number | null;
+  node_name: string | null;
+  node_hostname: string | null;
   sort_order: number;
   is_enabled: boolean;
   is_favorite: boolean;
@@ -37,6 +71,96 @@ export interface Service {
   last_http_status: number | null;
   status_reason: string | null;
   has_health_check: boolean;
+}
+
+export interface ServicePayload {
+  name: string;
+  icon: string;
+  description: string;
+  category: string;
+  url: string;
+  open_in_new_tab: boolean;
+  manual_status: string;
+  tags: string[];
+  node_id: number | null;
+  is_enabled: boolean;
+  is_favorite: boolean;
+  health_check_url: string | null;
+  health_check_interval_seconds: number | null;
+  health_check_timeout_seconds: number | null;
+}
+
+export interface NodeStatusCheck {
+  id: number;
+  node_id: number;
+  status: string;
+  checked_at: string;
+  response_time_ms: number | null;
+  http_status: number | null;
+  message: string | null;
+}
+
+export interface Node {
+  id: number;
+  name: string;
+  hostname: string;
+  role: string;
+  description: string;
+  status_endpoint: string | null;
+  metrics_source: string | null;
+  tags: string[];
+  sort_order: number;
+  is_enabled: boolean;
+  is_local: boolean;
+  status: string;
+  status_reason: string | null;
+  service_count: number;
+  online_service_count: number;
+  degraded_service_count: number;
+  offline_service_count: number;
+  unknown_service_count: number;
+  last_checked_at: string | null;
+  last_response_time_ms: number | null;
+  last_http_status: number | null;
+  last_metric_at: string | null;
+  cpu_usage_percent: number | null;
+  memory_used_percent: number | null;
+  disk_used_percent: number | null;
+  status_history: NodeStatusCheck[];
+  cpu_trend: ChartPoint[];
+  memory_trend: ChartPoint[];
+}
+
+export interface NodePayload {
+  name: string;
+  hostname: string;
+  role: string;
+  description: string;
+  status_endpoint: string | null;
+  metrics_source: string | null;
+  tags: string[];
+  is_enabled: boolean;
+  is_local: boolean;
+}
+
+export interface Note {
+  id: number;
+  title: string;
+  body: string;
+  sort_order: number;
+  is_pinned: boolean;
+  is_dashboard_pinned: boolean;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotePayload {
+  title: string;
+  body: string;
+  is_pinned: boolean;
+  is_dashboard_pinned: boolean;
+  is_archived: boolean;
 }
 
 export interface ReminderCompletion {
@@ -59,6 +183,14 @@ export interface Reminder {
   is_overdue: boolean;
   last_completed_at: string | null;
   completion_history: ReminderCompletion[];
+}
+
+export interface ReminderPayload {
+  text: string;
+  notes: string | null;
+  schedule_type: "daily" | "once";
+  due_date: string | null;
+  due_time: string | null;
 }
 
 export interface ReadingHistoryEntry {
@@ -147,6 +279,9 @@ export interface SystemSummary {
   reminders_completed_today: number;
   scripture_percent_complete: number;
   last_updated_at: string | null;
+  cpu_trend: ChartPoint[];
+  memory_trend: ChartPoint[];
+  disk_trend: ChartPoint[];
 }
 
 export interface BriefingQuote {
@@ -164,6 +299,42 @@ export interface DailyBriefing {
   reading_prompt: string | null;
   motivational_message: string | null;
   quote: BriefingQuote | null;
+  system_status_line: string | null;
+  scripture_of_the_day: string | null;
+  widget_summaries: string[];
+}
+
+export interface ServiceAvailability {
+  service_id: number;
+  service_name: string;
+  node_name: string | null;
+  uptime_percent: number;
+  recent_statuses: string[];
+  last_checked_at: string | null;
+}
+
+export interface ReadingTrendPoint {
+  date: string;
+  completed_count: number;
+  percent_complete: number;
+  streak: number;
+}
+
+export interface DashboardMetrics {
+  cpu_trend: ChartPoint[];
+  memory_trend: ChartPoint[];
+  disk_trend: ChartPoint[];
+  reading_trend: ReadingTrendPoint[];
+  service_availability: ServiceAvailability[];
+}
+
+export interface DashboardDiagnostics {
+  backend_health: string;
+  database_status: string;
+  last_backup_at: string | null;
+  integrations_available_count: number;
+  integrations_total_count: number;
+  last_health_check_at: string | null;
 }
 
 export interface DashboardAction {
@@ -188,6 +359,15 @@ export interface QuickActionLink {
   open_in_new_tab: boolean;
   is_enabled: boolean;
   sort_order: number;
+}
+
+export interface QuickActionLinkPayload {
+  name: string;
+  icon: string;
+  description: string;
+  url: string;
+  open_in_new_tab: boolean;
+  is_enabled: boolean;
 }
 
 export interface NavidromeAlbum {
@@ -227,45 +407,17 @@ export interface NavidromeWidget {
 export interface DashboardSummary {
   settings: SettingsData;
   services: Service[];
-  quick_actions: DashboardAction[];
+  nodes: Node[];
+  dashboard_actions: DashboardAction[];
+  control_actions: ControlItem[];
   reminders: Reminder[];
+  notes: Note[];
   scripture: ScriptureProgress;
   daily_briefing: DailyBriefing;
   system_summary: SystemSummary;
+  metrics: DashboardMetrics;
+  diagnostics: DashboardDiagnostics;
   navidrome: NavidromeWidget;
-}
-
-export interface ServicePayload {
-  name: string;
-  icon: string;
-  description: string;
-  category: string;
-  url: string;
-  open_in_new_tab: boolean;
-  manual_status: string;
-  tags: string[];
-  is_enabled: boolean;
-  is_favorite: boolean;
-  health_check_url: string | null;
-  health_check_interval_seconds: number | null;
-  health_check_timeout_seconds: number | null;
-}
-
-export interface ReminderPayload {
-  text: string;
-  notes: string | null;
-  schedule_type: "daily" | "once";
-  due_date: string | null;
-  due_time: string | null;
-}
-
-export interface QuickActionLinkPayload {
-  name: string;
-  icon: string;
-  description: string;
-  url: string;
-  open_in_new_tab: boolean;
-  is_enabled: boolean;
 }
 
 export interface AuthStatus {
@@ -331,4 +483,62 @@ export interface DiagnosticsSummary {
     recent_checks: ServiceStatusCheck[];
   };
   integrations: IntegrationSummary[];
+}
+
+export interface ControlItem {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  kind: "link" | "view" | "action" | "command";
+  icon: string;
+  url: string | null;
+  action_key: string | null;
+  command_key: string | null;
+  open_in_new_tab: boolean;
+  requires_confirmation: boolean;
+  confirmation_message: string | null;
+  is_favorite: boolean;
+}
+
+export interface HistoryEntry {
+  id: number;
+  entry_type: string;
+  action_key: string;
+  title: string;
+  category: string;
+  status: string;
+  output: string;
+  duration_ms: number | null;
+  created_at: string;
+}
+
+export interface LogSource {
+  id: string;
+  label: string;
+  description: string;
+  available: boolean;
+}
+
+export interface LogView {
+  source: string;
+  fetched_at: string;
+  lines: string[];
+}
+
+export interface CommandRunResult {
+  command_key: string;
+  title: string;
+  ok: boolean;
+  status: string;
+  output: string;
+  duration_ms: number;
+  created_at: string;
+}
+
+export interface ControlCenterSummary {
+  actions: ControlItem[];
+  commands: ControlItem[];
+  recent_history: HistoryEntry[];
+  log_sources: LogSource[];
 }

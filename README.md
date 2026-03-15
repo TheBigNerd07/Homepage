@@ -1,25 +1,25 @@
 # PiOne Command Center
 
-PiOne Command Center is a self-hosted homelab homepage built for Raspberry Pi class hardware. Phase 2 extends the original dashboard into a lightweight operating console with optional auth, live host stats, stored service health checks, Navidrome activity, quick actions, backups, and Cloudflare Tunnel friendly deployment.
+PiOne Command Center is a self-hosted homelab homepage built for Raspberry Pi class hardware. Phase 3 turns the project into a lightweight personal homelab control center with multi-node awareness, safe command utilities, richer widgets, notes, dashboard personalization, stronger charts, and a more polished mobile experience without drifting into a heavy admin suite.
 
 ## Stack
 
 - Frontend: React, TypeScript, Tailwind, Vite
 - Backend: FastAPI, SQLAlchemy
 - Database: SQLite
-- Containers: Docker Compose with ARM-safe official images
+- Deployment: Docker Compose
+- Target hardware: Raspberry Pi 4 / ARM64 Linux
 
-## Phase 2 Features
+## Phase 3 Highlights
 
-- Optional session-based authentication for a single admin user
-- Reverse proxy and Cloudflare Tunnel friendly deployment defaults
-- Live system overview with CPU, memory, disk, uptime, load, temperature, network, and optional Docker counts
-- Stored service health monitoring with configurable health URLs, intervals, response times, and recent check history
-- Optional Navidrome widget powered by the Subsonic-compatible API
-- Quick action control center with safe backend actions and configurable external links
-- Timestamped backup/export bundles containing the SQLite snapshot plus JSON exports
-- Expanded settings workspace for title, density, categories, reminder defaults, and health check defaults
-- Diagnostics page with app health, database status, integrations, last backup, and recent service checks
+- Multi-node support with node metadata, node health cards, node details, and service-to-node relationships
+- Safe control center with whitelisted utilities, execution history, read-only logs, and confirmation gates for restart actions
+- Persistent dashboard personalization: title, greeting, accent, background style, density, mobile mode, section visibility, widget layout, and favorite widgets
+- Smarter daily briefing built from reminders, scripture progress, node/service health, and favorite widget summaries
+- Expanded widget platform with a registry-driven layout model for future growth
+- Lightweight charts for CPU, RAM, disk, service availability, and reading progress trends
+- Built-in notes / scratchpad persisted in SQLite, including dashboard-pinned notes
+- Keyboard-friendly command palette with `Cmd/Ctrl + K`
 
 ## Project Structure
 
@@ -38,11 +38,58 @@ PiOne Command Center is a self-hosted homelab homepage built for Raspberry Pi cl
 │   ├── src
 │   ├── Dockerfile
 │   └── nginx.conf
-├── backups
 ├── data
-├── .env.example
-└── docker-compose.yml
+├── docker-compose.yml
+└── README.md
 ```
+
+## Core Concepts
+
+### Multi-node model
+
+Each node can store:
+
+- `name`
+- `hostname`
+- `role`
+- `description`
+- optional `status_endpoint`
+- optional `metrics_source`
+- optional `tags`
+
+The current installation automatically maintains a local primary node. Existing services are assigned to that node during migration unless you explicitly reassign them later.
+
+### Widget layout model
+
+Layout is persisted in SQLite through settings:
+
+- dashboard sections can be enabled or hidden
+- widgets can be enabled or disabled
+- widgets can be moved up/down
+- widgets can be reassigned to sections
+- widgets can change size (`compact`, `half`, `wide`, `hero`)
+- favorite widgets influence the daily briefing summaries
+
+### Safe command model
+
+The browser never gets unrestricted shell access by default.
+
+Phase 3 exposes a fixed set of backend-controlled utilities:
+
+- `docker ps`
+- disk usage summary
+- uptime summary
+- hostname summary
+- tail recent app logs
+- restart configured dashboard containers
+
+Important constraints:
+
+- commands are explicitly whitelisted in backend code
+- restart-style actions require confirmation in the UI
+- command output is logged in recent action history
+- logs are read-only
+- `UNSAFE_TERMINAL_ENABLED` exists only as a documented off-by-default escape hatch for future experimentation; Phase 3 does not expose arbitrary browser shell execution
 
 ## Environment Variables
 
@@ -54,22 +101,27 @@ cp .env.example .env
 
 Important runtime variables:
 
-- `PUBLIC_BASE_URL`: public HTTPS URL for tunnel/reverse-proxy deployments
-- `TRUSTED_HOSTS`: comma-separated hostnames to trust in production; use your tunnel hostname instead of `*`
+- `PUBLIC_BASE_URL`: public HTTPS URL for reverse-proxy or tunnel deployments
+- `TRUSTED_HOSTS`: comma-separated hostnames to trust in production
 - `AUTH_ENABLED`: set to `true` to require login
 - `AUTH_SECRET_KEY`: required when auth is enabled
-- `AUTH_PASSWORD_HASH`: preferred password format for auth
+- `AUTH_PASSWORD_HASH`: preferred password format
 - `AUTH_PASSWORD`: raw password fallback for simple self-hosted setups
 - `NAVIDROME_BASE_URL`, `NAVIDROME_USERNAME`, `NAVIDROME_PASSWORD`: enable Navidrome widgets
-- `BACKUP_DIR`: mounted backup directory inside the API container
-- `APP_CONTAINER_NAME`: required only if you want the restart-dashboard quick action
-- `CLOUDFLARED_TUNNEL_TOKEN`: only needed when running `cloudflared` in Compose
+- `APP_LOG_PATH`: rotating backend log file used by the read-only logs viewer
+- `APP_CONTAINER_NAME`: optional single container name for compatibility features
+- `STACK_RESTART_CONTAINER_NAMES`: comma-separated container names the control center may restart
+- `DOCKER_SOCKET_PATH`: Docker socket path if Docker-aware features are enabled
+- `METRIC_SAMPLE_INTERVAL_SECONDS`: how often lightweight metric history is recorded
+- `METRIC_SAMPLE_RETENTION_COUNT`: number of metric samples retained
+- `CONTROL_RECENT_HISTORY_LIMIT`: number of recent command/action history entries returned to the UI
+- `UNSAFE_TERMINAL_ENABLED`: documented advanced flag, kept `false` by default
 
-Secrets should stay in environment variables. User-editable dashboard preferences stay in SQLite.
+Secrets stay in environment variables. Dashboard personalization, nodes, services, notes, reminders, and layout preferences stay in SQLite.
 
 ## Local Mac Development
 
-### Docker hot-reload
+### Docker hot reload
 
 ```bash
 docker compose --profile dev up --build api-dev frontend-dev
@@ -92,35 +144,50 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run build
 ```
 
-## Raspberry Pi Deployment on PiOne
+### Backend verification
+
+Inside the backend container or a Python environment with dependencies installed:
+
+```bash
+python -m compileall backend/app
+```
+
+## Raspberry Pi Deployment On PiOne
 
 Recommended target:
 
 - Raspberry Pi 4
-- 64-bit Raspberry Pi OS or another ARM64 Linux
+- ARM64 Linux
 - Docker Engine with Compose plugin
 
 Deployment workflow:
 
 1. Copy the project to PiOne.
 2. Create `.env` from `.env.example`.
-3. Set `APP_TIMEZONE`, `LAB_HOSTNAME`, and `PUBLIC_BASE_URL` if the app will be exposed publicly.
-4. Start the stack:
+3. Set `APP_TIMEZONE`, `LAB_HOSTNAME`, and optional public URL settings.
+4. Decide whether to mount the Docker socket.
 
-   ```bash
-   docker compose up --build -d api web
-   ```
+If you want:
 
-5. Open the dashboard at `http://<pione-ip>:3000` or at your public tunnel URL.
+- Docker-aware container summaries
+- control-center restart actions
+- Docker-backed log sources
 
-Update workflow:
+then mount `/var/run/docker.sock` into the API container and set `STACK_RESTART_CONTAINER_NAMES`.
+
+Start the stack:
 
 ```bash
 docker compose up --build -d api web
+```
+
+Watch logs:
+
+```bash
 docker compose logs -f api web
 ```
 
@@ -130,110 +197,120 @@ Stop the stack:
 docker compose down
 ```
 
-## Cloudflare Tunnel
+## Multi-node Setup
 
-The app is safe to place behind a reverse proxy or Cloudflare Tunnel as long as you set the public URL and trusted hosts correctly.
+Phase 3 no longer assumes a single host.
 
-### Option 1: Run `cloudflared` alongside the app
+Suggested starting topology:
 
-1. Create a tunnel in Cloudflare Zero Trust and obtain the tunnel token.
-2. Set these variables in `.env`:
+- `PiOne`: local primary node for dashboard, infrastructure, observability
+- `MusicPi`: media node
+- future NAS node
+- future utility node
 
-   ```bash
-   PUBLIC_BASE_URL=https://dashboard.example.com
-   TRUSTED_HOSTS=dashboard.example.com
-   SESSION_COOKIE_SECURE=true
-   CLOUDFLARED_TUNNEL_TOKEN=your-token
-   ```
+Recommended flow:
 
-3. Point the tunnel hostname at the `web` service.
-4. Start the tunnel profile:
+1. Open **Settings**.
+2. Add nodes in the **Nodes** section.
+3. Assign services to nodes in the **Services** section.
+4. Optionally set a `status_endpoint` for remote nodes.
+5. Use the **Nodes** page to inspect per-node health and service placement.
 
-   ```bash
-   docker compose --profile tunnel up -d --build api web cloudflared
-   ```
+Current behavior:
 
-### Option 2: Run the tunnel externally on PiOne
+- the local node can use real local metrics
+- remote nodes can use metadata plus optional status endpoints
+- future remote-agent style expansion is possible without changing the data model
 
-If you run `cloudflared` directly on the Pi instead of in Compose, keep the application stack the same and only set:
+## Dashboard Personalization
 
-```bash
-PUBLIC_BASE_URL=https://dashboard.example.com
-TRUSTED_HOSTS=dashboard.example.com
-SESSION_COOKIE_SECURE=true
-```
+Personalization is stored per installation in SQLite.
 
-Then route the tunnel to the web container or host port:
+You can configure:
 
-- `http://127.0.0.1:3000`
-- `http://<pione-ip>:3000`
+- dashboard title
+- display name / greeting
+- accent color
+- background style (`none`, `gradient`, `pattern`)
+- density (`comfortable`, `compact`)
+- mobile mode (`full`, `briefing`, `compact`)
+- default service grouping
+- today’s focus text
+- widget favorites
+- section visibility
+- widget order, section placement, enable state, and size
 
-### Tunnel security notes
+The dashboard is rendered from the widget registry plus your saved layout settings, not from hardcoded page ordering.
 
-- Enable authentication before exposing the dashboard publicly.
-- Use a strong `AUTH_SECRET_KEY`.
-- Restrict `TRUSTED_HOSTS` to the real hostname(s) you expect.
-- Treat the Cloudflare tunnel token as a secret.
-- Only mount the Docker socket if you explicitly want Docker-aware widgets or restart actions.
+## Control Center
 
-## Optional Authentication
+The control center groups actions into categories such as:
 
-Authentication is off by default. When disabled, the app behaves like the original Phase 1 dashboard.
+- navigation
+- maintenance
+- diagnostics
+- container actions
 
-To enable it:
+It also includes:
 
-```bash
-AUTH_ENABLED=true
-AUTH_ADMIN_USERNAME=admin
-AUTH_SECRET_KEY=replace-with-a-long-random-secret
-SESSION_COOKIE_SECURE=true
-PUBLIC_BASE_URL=https://dashboard.example.com
-TRUSTED_HOSTS=dashboard.example.com
-```
+- whitelisted command utilities
+- read-only logs
+- recent action history
+- command favorites
 
-Preferred password setup:
+Restart-style actions are intentionally scoped to configured container names. They do not expose arbitrary shell access.
 
-1. Generate a hash:
+## Notes / Scratchpad
 
-   ```bash
-   docker compose run --rm api python -c "from app.core.auth import hash_password; print(hash_password('change-me'))"
-   ```
+Phase 3 adds persistent plain-text notes:
 
-2. Put the output in `AUTH_PASSWORD_HASH`.
-3. Leave `AUTH_PASSWORD` empty.
+- multiple notes supported
+- each note has created and updated timestamps
+- notes can be pinned in the notes list
+- notes can be pinned to the dashboard
 
-Simpler fallback:
+Suggested uses:
 
-- Set `AUTH_PASSWORD=change-me`
-- This is supported for self-hosted setups, but the hash form is better
+- homelab to-dos
+- troubleshooting breadcrumbs
+- future project ideas
+- temporary maintenance notes
 
-When auth is enabled:
+## Mobile / Tablet Behavior
 
-- The dashboard requires login before loading protected routes
-- Backend dashboard/config/data routes return `401` without a valid session
-- Logout is available in the app shell
+Phase 3 improves the dashboard on smaller screens:
 
-## Service Health Monitoring
+- responsive stacked cards
+- larger touch targets
+- sticky mobile navigation
+- daily briefing remains prominent
+- optional mobile modes:
+  - `full`
+  - `briefing`
+  - `compact`
 
-Each service can optionally define:
+`briefing` and `compact` simplify the first mobile dashboard pass while still allowing the full dashboard to be expanded on demand.
 
-- `health_check_url`
-- `health_check_interval_seconds`
-- `health_check_timeout_seconds`
+## Command Palette
 
-If no health URL is set, the service keeps its manual status.
+Keyboard shortcut:
 
-If a health URL is set:
+- `Cmd + K` on macOS
+- `Ctrl + K` elsewhere
 
-- Background checks run on a lightweight loop
-- Last checked time, response time, and status reason are stored
-- Recent check history is shown in diagnostics
+The palette can search:
 
-Recommended defaults live in Settings and are persisted in SQLite.
+- pages
+- services
+- quick actions
+- control-center commands
+- node entries
 
 ## Navidrome Integration
 
-Navidrome widgets stay disabled until all three values are configured:
+Navidrome widgets remain optional.
+
+Set:
 
 ```bash
 NAVIDROME_BASE_URL=http://pione.local:4533
@@ -241,49 +318,29 @@ NAVIDROME_USERNAME=your-user
 NAVIDROME_PASSWORD=your-password
 ```
 
-The dashboard will then show:
+When configured, the dashboard can show:
 
-- Recently added albums
-- Now playing sessions
-- Basic library counts when available
+- library stats
+- now playing data
+- recently added albums
 
-If Navidrome is unavailable, the widget degrades gracefully instead of breaking the page.
+## Backups
 
-## Quick Actions / Control Center
+Export bundles now include:
 
-Built-in safe actions:
+- SQLite snapshot
+- settings JSON
+- services JSON
+- nodes JSON
+- reminders JSON
+- notes JSON
+- scripture progress JSON
+- quick action links JSON
+- recent action history JSON
+- metric samples JSON
+- export metadata
 
-- Refresh service checks
-- Export backup bundle
-- Open diagnostics
-- Open settings
-
-Optional backend action:
-
-- Restart dashboard container
-
-To enable the restart action:
-
-1. Mount `/var/run/docker.sock` into the API container.
-2. Set `APP_CONTAINER_NAME` to the container you want restarted.
-
-Configurable external action links are managed in Settings and are intended for safe navigation targets like Portainer or Grafana.
-
-## Backups and Restore Guidance
-
-Exports are triggered from the dashboard quick actions area.
-
-Each export bundle contains:
-
-- SQLite database snapshot
-- Settings JSON
-- Services JSON
-- Reminders JSON
-- Scripture tracker JSON
-- Quick action links JSON
-- Export metadata
-
-If `BACKUP_DIR` is mounted, the archive is also stored there with a timestamped filename.
+If `BACKUP_DIR` is mounted, the ZIP is also stored there.
 
 Restore guidance:
 
@@ -294,35 +351,22 @@ Restore guidance:
    ```
 
 2. Unzip the backup.
-3. Replace `data/pione-homepage.db` with the saved database file for the simplest full restore.
+3. Replace `data/pione-homepage.db` with the saved database file for the fastest full restore.
 4. Start the stack again:
 
    ```bash
    docker compose up -d api web
    ```
 
-JSON exports are included for selective recovery or inspection, but the SQLite snapshot is the fastest full restore path.
+## Cloudflare Tunnel / Reverse Proxy
 
-## Persistent Data
+The app remains safe to place behind a reverse proxy or Cloudflare Tunnel if you configure:
 
-Persistent directories:
+- `PUBLIC_BASE_URL`
+- `TRUSTED_HOSTS`
+- `SESSION_COOKIE_SECURE=true` when using HTTPS
 
-- `./data` for SQLite
-- `./backups` for exported backup archives
-
-The backend uses SQLite WAL mode and creates a safe snapshot during export instead of copying the live DB file blindly.
-
-## Diagnostics Page
-
-The diagnostics view shows:
-
-- App version and environment
-- Backend and database status
-- Last export time and backup path
-- Recent service health check results
-- Integration availability summary
-
-Sensitive secrets are not exposed in the UI.
+If auth is enabled, ensure `AUTH_SECRET_KEY` is strong and non-default.
 
 ## Troubleshooting
 
@@ -330,14 +374,20 @@ Sensitive secrets are not exposed in the UI.
   - Check `AUTH_ENABLED`, `AUTH_SECRET_KEY`, and your password/hash settings.
 - Login works locally but not through the tunnel
   - Set `PUBLIC_BASE_URL`, `TRUSTED_HOSTS`, and `SESSION_COOKIE_SECURE=true`.
-- Service checks stay `unknown`
+- Remote node stays `unknown`
+  - Confirm the node has a reachable `status_endpoint`, or accept metadata-only mode for that node.
+- Service health stays `unknown`
   - Confirm the service has a reachable `health_check_url`.
-- Docker stats are unavailable
-  - The Docker socket is not mounted or the API container lacks permission.
+- Control-center restart action is missing
+  - Mount the Docker socket and set `STACK_RESTART_CONTAINER_NAMES`.
+- Docker stats or `docker ps` are unavailable
+  - The Docker socket is not mounted or permissions are missing.
+- Log viewer is empty
+  - Check `APP_LOG_PATH` and container write permissions for `/data/logs`.
 - Navidrome widget is empty
-  - Confirm all three Navidrome env vars are set and the API is reachable from the container.
-- Backup export downloads but is not stored
-  - Set `BACKUP_DIR` and keep `./backups:/backups` mounted.
+  - Confirm all three Navidrome env vars are set and reachable from the API container.
+- Mobile dashboard shows fewer widgets
+  - Check the selected mobile mode in settings or use the “show full dashboard” toggle.
 
 ## API Overview
 
@@ -347,10 +397,12 @@ Sensitive secrets are not exposed in the UI.
 - `POST /api/auth/logout`
 - `GET /api/dashboard/summary`
 - `GET /api/diagnostics/summary`
-- `POST /api/backups/export`
-- `POST /api/actions/{action_key}`
+- `GET /api/settings`
+- `PUT /api/settings`
 - `GET|POST|PATCH|DELETE /api/services`
 - `PUT /api/services/reorder`
+- `GET|POST|PATCH|DELETE /api/nodes`
+- `GET|POST|PATCH|DELETE /api/notes`
 - `GET|POST|PATCH|DELETE /api/quick-actions`
 - `PUT /api/quick-actions/reorder`
 - `GET|POST|PATCH|DELETE /api/reminders`
@@ -359,5 +411,8 @@ Sensitive secrets are not exposed in the UI.
 - `GET /api/scripture/history`
 - `GET /api/scripture/chapters`
 - `POST /api/scripture/complete`
-- `GET /api/settings`
-- `PUT /api/settings`
+- `GET /api/control-center/summary`
+- `POST /api/control-center/actions/{action_key}`
+- `POST /api/control-center/commands/{command_key}`
+- `GET /api/control-center/logs`
+- `POST /api/backups/export`

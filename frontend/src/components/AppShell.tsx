@@ -1,8 +1,18 @@
 import type { PropsWithChildren, ReactNode } from "react";
-import { BookMarked, FileSearch, LayoutDashboard, LogOut, Settings2, Shield } from "lucide-react";
+import {
+  BookMarked,
+  FileSearch,
+  LayoutDashboard,
+  LogOut,
+  NotebookTabs,
+  Settings2,
+  Shield,
+  SquareTerminal,
+  Workflow,
+} from "lucide-react";
 import type { AuthStatus, ScriptureProgress, SystemSummary } from "../types";
 
-type ViewMode = "dashboard" | "settings" | "diagnostics";
+export type ViewMode = "dashboard" | "control" | "nodes" | "notes" | "settings" | "diagnostics";
 
 interface AppShellProps extends PropsWithChildren {
   view: ViewMode;
@@ -13,6 +23,15 @@ interface AppShellProps extends PropsWithChildren {
   authStatus: AuthStatus | null;
   onLogout: () => void;
 }
+
+const NAV_ITEMS: Array<{ id: ViewMode; label: string; icon: ReactNode }> = [
+  { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
+  { id: "control", label: "Control", icon: <SquareTerminal className="h-4 w-4" /> },
+  { id: "nodes", label: "Nodes", icon: <Workflow className="h-4 w-4" /> },
+  { id: "notes", label: "Notes", icon: <NotebookTabs className="h-4 w-4" /> },
+  { id: "settings", label: "Settings", icon: <Settings2 className="h-4 w-4" /> },
+  { id: "diagnostics", label: "Diagnostics", icon: <FileSearch className="h-4 w-4" /> },
+];
 
 function navButton(
   label: string,
@@ -26,7 +45,7 @@ function navButton(
       onClick={onClick}
       className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
         active
-          ? "bg-accent/15 text-white shadow-[inset_0_0_0_1px_rgba(94,234,212,0.22)]"
+          ? "bg-accent/15 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
           : "bg-white/[0.03] text-slate-300 hover:bg-white/[0.06] hover:text-white"
       }`}
     >
@@ -47,34 +66,19 @@ export function AppShell({
   children,
 }: AppShellProps) {
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[1640px] gap-6 px-4 py-4 sm:px-6 lg:px-8 lg:py-8">
-      <aside className="panel hidden w-80 shrink-0 self-start p-6 lg:sticky lg:top-8 lg:block">
+    <div className="mx-auto flex min-h-screen w-full max-w-[1720px] gap-5 px-3 py-3 sm:px-5 sm:py-5 lg:gap-6 lg:px-8 lg:py-8">
+      <aside className="panel hidden w-84 shrink-0 self-start p-6 lg:sticky lg:top-8 lg:block">
         <div>
-          <div className="label">PiOne Homelab</div>
+          <div className="label">Homelab OS</div>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">{dashboardTitle}</h1>
           <p className="mt-3 text-sm leading-6 text-slate-300">
-            A calm command center for services, system health, backups, and daily routines.
+            Multi-node dashboard, safe utilities, personal routines, and diagnostics in one calm view.
           </p>
         </div>
 
         <div className="mt-8 grid gap-3">
-          {navButton(
-            "Dashboard",
-            <LayoutDashboard className="h-4 w-4" />,
-            view === "dashboard",
-            () => onChangeView("dashboard"),
-          )}
-          {navButton(
-            "Settings",
-            <Settings2 className="h-4 w-4" />,
-            view === "settings",
-            () => onChangeView("settings"),
-          )}
-          {navButton(
-            "Diagnostics",
-            <FileSearch className="h-4 w-4" />,
-            view === "diagnostics",
-            () => onChangeView("diagnostics"),
+          {NAV_ITEMS.map((item) =>
+            navButton(item.label, item.icon, view === item.id, () => onChangeView(item.id)),
           )}
         </div>
 
@@ -123,33 +127,25 @@ export function AppShell({
       </aside>
 
       <main className="min-w-0 flex-1">
-        <div className="panel mb-6 p-3 lg:hidden">
-          <div className="grid gap-3 sm:grid-cols-3">
-            {navButton(
-              "Dashboard",
-              <LayoutDashboard className="h-4 w-4" />,
-              view === "dashboard",
-              () => onChangeView("dashboard"),
-            )}
-            {navButton(
-              "Settings",
-              <Settings2 className="h-4 w-4" />,
-              view === "settings",
-              () => onChangeView("settings"),
-            )}
-            {navButton(
-              "Diagnostics",
-              <FileSearch className="h-4 w-4" />,
-              view === "diagnostics",
-              () => onChangeView("diagnostics"),
-            )}
+        <div className="panel sticky top-3 z-20 mb-5 p-3 lg:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="label">Homelab OS</div>
+              <div className="mt-1 text-lg font-semibold text-white">{dashboardTitle}</div>
+            </div>
+            {authStatus?.enabled ? (
+              <button type="button" className="button-secondary px-3 py-2" onClick={onLogout}>
+                <LogOut className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
-          {authStatus?.enabled ? (
-            <button type="button" className="button-secondary mt-3 w-full" onClick={onLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </button>
-          ) : null}
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+            {NAV_ITEMS.map((item) => (
+              <div key={item.id} className="shrink-0">
+                {navButton(item.label, item.icon, view === item.id, () => onChangeView(item.id))}
+              </div>
+            ))}
+          </div>
         </div>
         {children}
       </main>
