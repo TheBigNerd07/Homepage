@@ -1,0 +1,136 @@
+services:
+  api:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_PATH: ${DATABASE_PATH:-/data/pione-homepage.db}
+      BACKUP_DIR: ${BACKUP_DIR:-/backups}
+      APP_TIMEZONE: ${APP_TIMEZONE:-America/Los_Angeles}
+      LAB_HOSTNAME: ${LAB_HOSTNAME:-PiOne}
+      APP_NAME: ${APP_NAME:-PiOne Command Center}
+      APP_VERSION: ${APP_VERSION:-2.0.0}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:-*}
+      BEHIND_PROXY: ${BEHIND_PROXY:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-}
+      AUTH_ENABLED: ${AUTH_ENABLED:-false}
+      AUTH_ADMIN_USERNAME: ${AUTH_ADMIN_USERNAME:-admin}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-}
+      AUTH_PASSWORD_HASH: ${AUTH_PASSWORD_HASH:-}
+      AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:-change-this-secret-key}
+      AUTH_SESSION_TTL_HOURS: ${AUTH_SESSION_TTL_HOURS:-336}
+      NAVIDROME_BASE_URL: ${NAVIDROME_BASE_URL:-}
+      NAVIDROME_USERNAME: ${NAVIDROME_USERNAME:-}
+      NAVIDROME_PASSWORD: ${NAVIDROME_PASSWORD:-}
+      NAVIDROME_TIMEOUT_SECONDS: ${NAVIDROME_TIMEOUT_SECONDS:-4}
+      DOCKER_SOCKET_PATH: ${DOCKER_SOCKET_PATH:-/var/run/docker.sock}
+      APP_CONTAINER_NAME: ${APP_CONTAINER_NAME:-}
+      SERVICE_MONITOR_TICK_SECONDS: ${SERVICE_MONITOR_TICK_SECONDS:-20}
+    volumes:
+      - ./data:/data
+      - ./backups:/backups
+      # Optional: mount the Docker socket only if you want Docker-aware stats and restart actions.
+      # - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3).read()",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+      target: production
+      args:
+        VITE_API_BASE_URL: /api
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3000}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  cloudflared:
+    profiles: ["tunnel"]
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TUNNEL_TOKEN}
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api-dev:
+    profiles: ["dev"]
+    build:
+      context: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      DATABASE_PATH: ${DATABASE_PATH:-/data/pione-homepage.db}
+      BACKUP_DIR: ${BACKUP_DIR:-/backups}
+      APP_TIMEZONE: ${APP_TIMEZONE:-America/Los_Angeles}
+      LAB_HOSTNAME: ${LAB_HOSTNAME:-PiOne}
+      APP_NAME: ${APP_NAME:-PiOne Command Center}
+      APP_VERSION: ${APP_VERSION:-2.0.0}
+      ENVIRONMENT: development
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:-*}
+      BEHIND_PROXY: ${BEHIND_PROXY:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      AUTH_ENABLED: ${AUTH_ENABLED:-false}
+      AUTH_ADMIN_USERNAME: ${AUTH_ADMIN_USERNAME:-admin}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-}
+      AUTH_PASSWORD_HASH: ${AUTH_PASSWORD_HASH:-}
+      AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:-dev-only-secret-key}
+      AUTH_SESSION_TTL_HOURS: ${AUTH_SESSION_TTL_HOURS:-336}
+      NAVIDROME_BASE_URL: ${NAVIDROME_BASE_URL:-}
+      NAVIDROME_USERNAME: ${NAVIDROME_USERNAME:-}
+      NAVIDROME_PASSWORD: ${NAVIDROME_PASSWORD:-}
+      NAVIDROME_TIMEOUT_SECONDS: ${NAVIDROME_TIMEOUT_SECONDS:-4}
+      DOCKER_SOCKET_PATH: ${DOCKER_SOCKET_PATH:-/var/run/docker.sock}
+      APP_CONTAINER_NAME: ${APP_CONTAINER_NAME:-}
+      SERVICE_MONITOR_TICK_SECONDS: ${SERVICE_MONITOR_TICK_SECONDS:-20}
+    volumes:
+      - ./backend:/app
+      - ./data:/data
+      - ./backups:/backups
+    ports:
+      - "${API_PORT:-8000}:8000"
+
+  frontend-dev:
+    profiles: ["dev"]
+    build:
+      context: ./frontend
+      target: development
+    environment:
+      VITE_API_BASE_URL: http://localhost:${API_PORT:-8000}/api
+      VITE_PROXY_TARGET: http://api-dev:8000
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      api-dev:
+        condition: service_started
+
+volumes:
+  frontend_node_modules:
