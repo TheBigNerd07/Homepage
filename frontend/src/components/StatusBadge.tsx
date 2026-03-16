@@ -12,7 +12,7 @@ export function StatusBadge({ status }: { status: string }) {
   return (
     <span
       className={clsx(
-        "inline-flex rounded-full border px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.18em]",
+        "inline-flex shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.18em]",
         statusStyles[normalized],
       )}
     >

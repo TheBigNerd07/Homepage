@@ -51,18 +51,20 @@ export function SystemOverview({ summary }: { summary: SystemSummary }) {
 
   return (
     <Card title="System Overview" eyebrow={summary.hostname}>
-      <div className="grid gap-3 xl:grid-cols-3">
+      <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(12rem,1fr))]">
         {metrics.map((metric) => (
           <div
             key={metric.label}
-            className="rounded-[24px] border border-white/8 bg-gradient-to-br from-white/[0.05] via-white/[0.03] to-transparent p-4"
+            className="min-w-0 rounded-[24px] border border-white/8 bg-gradient-to-br from-white/[0.05] via-white/[0.03] to-transparent p-4"
           >
             <div className="flex items-center justify-between text-slate-300">
               <span className="label">{metric.label}</span>
               {metric.icon}
             </div>
-            <div className="mt-3 text-2xl font-semibold text-white">{metric.value}</div>
-            <div className="mt-2 text-sm text-slate-400">{metric.note}</div>
+            <div className="mt-3 break-words text-xl font-semibold leading-tight text-white sm:text-2xl">
+              {metric.value}
+            </div>
+            <div className="mt-2 break-words text-sm leading-6 text-slate-400">{metric.note}</div>
             <div className="mt-4">
               <Sparkline points={metric.trend} />
             </div>
@@ -70,56 +72,56 @@ export function SystemOverview({ summary }: { summary: SystemSummary }) {
         ))}
       </div>
 
-      <div className="mt-5 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-[24px] border border-white/8 bg-slate-950/30 p-4 text-sm text-slate-300">
+      <div className="mt-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))]">
+        <div className="min-w-0 rounded-[24px] border border-white/8 bg-slate-950/30 p-4 text-sm text-slate-300">
           <div className="mb-4 flex items-center gap-2 text-slate-200">
             <Wifi className="h-4 w-4 text-accent/80" />
             <span className="label">Network</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
+            <div className="min-w-0">
               <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Receive</div>
-              <div className="mt-2 text-lg font-semibold text-white">
+              <div className="mt-2 break-words text-base font-semibold leading-tight text-white sm:text-lg">
                 {formatRate(summary.network.rx_bytes_per_second)}
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Transmit</div>
-              <div className="mt-2 text-lg font-semibold text-white">
+              <div className="mt-2 break-words text-base font-semibold leading-tight text-white sm:text-lg">
                 {formatRate(summary.network.tx_bytes_per_second)}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="rounded-[24px] border border-white/8 bg-slate-950/30 p-4 text-sm text-slate-300">
+        <div className="min-w-0 rounded-[24px] border border-white/8 bg-slate-950/30 p-4 text-sm text-slate-300">
           <div className="mb-4 flex items-center gap-2 text-slate-200">
             <Thermometer className="h-4 w-4 text-accent/80" />
             <span className="label">Runtime</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
+            <div className="min-w-0">
               <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Uptime</div>
-              <div className="mt-2 flex items-center gap-2 text-lg font-semibold text-white">
+              <div className="mt-2 flex flex-wrap items-center gap-2 break-words text-base font-semibold leading-tight text-white sm:text-lg">
                 <TimerReset className="h-4 w-4 text-accent/80" />
                 {summary.uptime_label ?? "Unavailable"}
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Temperature</div>
-              <div className="mt-2 text-lg font-semibold text-white">
+              <div className="mt-2 break-words text-base font-semibold leading-tight text-white sm:text-lg">
                 {summary.temperature_c !== null ? `${summary.temperature_c} C` : "Unavailable"}
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Containers</div>
-              <div className="mt-2 text-lg font-semibold text-white">
+              <div className="mt-2 break-words text-base font-semibold leading-tight text-white sm:text-lg">
                 {summary.docker.running_count ?? "Unavailable"}
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Healthy / Unhealthy</div>
-              <div className="mt-2 text-lg font-semibold text-white">
+              <div className="mt-2 break-words text-base font-semibold leading-tight text-white sm:text-lg">
                 {summary.docker.available
                   ? `${summary.docker.healthy_count ?? 0} / ${summary.docker.unhealthy_count ?? 0}`
                   : "Socket off"}
@@ -129,26 +131,26 @@ export function SystemOverview({ summary }: { summary: SystemSummary }) {
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 rounded-[24px] border border-white/8 bg-slate-950/30 p-4 text-sm text-slate-300 md:grid-cols-2 xl:grid-cols-4">
-        <div className="flex justify-between gap-4">
-          <span>Online Services</span>
-          <span className="font-mono text-slate-200">
+      <div className="mt-5 grid gap-3 rounded-[24px] border border-white/8 bg-slate-950/30 p-4 text-sm text-slate-300 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]">
+        <div className="min-w-0 rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-3">
+          <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Online Services</div>
+          <div className="mt-2 break-words font-mono text-slate-200">
             {summary.online_service_count}/{summary.service_count}
-          </span>
+          </div>
         </div>
-        <div className="flex justify-between gap-4">
-          <span>Degraded</span>
-          <span className="font-mono text-slate-200">{summary.degraded_service_count}</span>
+        <div className="min-w-0 rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-3">
+          <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Degraded</div>
+          <div className="mt-2 break-words font-mono text-slate-200">{summary.degraded_service_count}</div>
         </div>
-        <div className="flex justify-between gap-4">
-          <span>Offline</span>
-          <span className="font-mono text-slate-200">{summary.offline_service_count}</span>
+        <div className="min-w-0 rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-3">
+          <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Offline</div>
+          <div className="mt-2 break-words font-mono text-slate-200">{summary.offline_service_count}</div>
         </div>
-        <div className="flex justify-between gap-4">
-          <span>Updated</span>
-          <span className="font-mono text-slate-200">
+        <div className="min-w-0 rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-3">
+          <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Updated</div>
+          <div className="mt-2 break-words font-mono text-slate-200">
             {summary.last_updated_at ? new Date(summary.last_updated_at).toLocaleTimeString() : "Now"}
-          </span>
+          </div>
         </div>
       </div>
     </Card>
