@@ -1,7 +1,10 @@
+import logging
 from datetime import UTC, date, datetime, timedelta
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def utc_now() -> datetime:
@@ -9,7 +12,12 @@ def utc_now() -> datetime:
 
 
 def local_zone() -> ZoneInfo:
-    return ZoneInfo(get_settings().app_timezone)
+    timezone_name = get_settings().app_timezone
+    try:
+        return ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        logger.warning("Timezone '%s' is unavailable in this runtime. Falling back to UTC.", timezone_name)
+        return ZoneInfo("UTC")
 
 
 def local_now() -> datetime:
