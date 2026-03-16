@@ -1,10 +1,10 @@
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Boolean, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, TimestampMixin, UTCDateTime
 
 
 class ServiceStatus(StrEnum):
@@ -34,7 +34,7 @@ class ServiceLink(TimestampMixin, Base):
     health_check_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     health_check_interval_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     health_check_timeout_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_checked_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     last_response_time_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     last_http_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status_reason: Mapped[str] = mapped_column(Text, default="")

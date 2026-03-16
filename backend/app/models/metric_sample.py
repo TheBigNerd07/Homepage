@@ -1,9 +1,10 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric
+from sqlalchemy import ForeignKey, Integer, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.core.time import utc_now
+from app.db.base import Base, UTCDateTime
 
 
 class MetricSample(Base):
@@ -11,7 +12,7 @@ class MetricSample(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     node_id: Mapped[int | None] = mapped_column(ForeignKey("nodes.id", ondelete="SET NULL"), nullable=True)
-    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utc_now)
     cpu_usage_percent: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
     memory_used_percent: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
     disk_used_percent: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)

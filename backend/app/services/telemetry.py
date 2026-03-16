@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.time import day_range, local_today, to_local, utc_now
+from app.core.time import day_range, local_today, to_local, to_utc, utc_now
 from app.db.session import SessionLocal
 from app.models import LabNode, MetricSample, ScriptureChapter, ServiceLink, ServiceStatusCheck
 from app.schemas.common import ChartPoint
@@ -35,6 +35,7 @@ def record_metric_sample(*, force: bool = False) -> None:
     settings = get_settings()
     with SessionLocal() as session:
         local_node = ensure_local_node(session)
+        now = utc_now()
         latest = session.execute(
             select(MetricSample)
             .where(MetricSample.node_id == local_node.id)
@@ -44,7 +45,7 @@ def record_metric_sample(*, force: bool = False) -> None:
         if (
             latest is not None
             and not force
-            and (utc_now() - latest.recorded_at).total_seconds() < settings.metric_sample_interval_seconds
+            and (now - to_utc(latest.recorded_at)).total_seconds() < settings.metric_sample_interval_seconds
         ):
             return
 
@@ -59,7 +60,7 @@ def record_metric_sample(*, force: bool = False) -> None:
         session.add(
             MetricSample(
                 node_id=local_node.id,
-                recorded_at=utc_now(),
+                recorded_at=now,
                 cpu_usage_percent=sample.cpu_usage_percent,
                 memory_used_percent=sample.memory.used_percent,
                 disk_used_percent=sample.disk.used_percent,

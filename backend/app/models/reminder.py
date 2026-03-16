@@ -1,11 +1,11 @@
 from datetime import date, datetime
 from enum import StrEnum
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.time import utc_now
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, TimestampMixin, UTCDateTime
 
 
 class ReminderSchedule(StrEnum):
@@ -45,6 +45,6 @@ class ReminderCompletion(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     reminder_id: Mapped[int] = mapped_column(ForeignKey("reminders.id", ondelete="CASCADE"), nullable=False)
     completed_for_date: Mapped[date] = mapped_column(Date, nullable=False)
-    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    completed_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
 
     reminder: Mapped[Reminder] = relationship(back_populates="completions")

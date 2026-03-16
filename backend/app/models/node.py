@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Boolean, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, TimestampMixin, UTCDateTime
 
 
 class LabNode(TimestampMixin, Base):
@@ -21,7 +21,7 @@ class LabNode(TimestampMixin, Base):
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     is_local: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String(20), default="unknown")
-    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_checked_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     last_response_time_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     last_http_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status_reason: Mapped[str] = mapped_column(Text, default="")
@@ -45,7 +45,7 @@ class NodeStatusCheck(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     node_id: Mapped[int] = mapped_column(ForeignKey("nodes.id", ondelete="CASCADE"), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
-    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     response_time_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     http_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     message: Mapped[str] = mapped_column(Text, default="")

@@ -1,5 +1,5 @@
 import logging
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.core.config import get_settings
@@ -8,7 +8,13 @@ logger = logging.getLogger(__name__)
 
 
 def utc_now() -> datetime:
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
+
+
+def to_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def local_zone() -> ZoneInfo:
@@ -29,9 +35,7 @@ def local_today() -> date:
 
 
 def to_local(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=UTC)
-    return value.astimezone(local_zone())
+    return to_utc(value).astimezone(local_zone())
 
 
 def day_range(days: int) -> list[date]:

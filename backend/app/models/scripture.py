@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, TimestampMixin, UTCDateTime
 
 
 class ScriptureChapter(TimestampMixin, Base):
@@ -15,4 +15,4 @@ class ScriptureChapter(TimestampMixin, Base):
     chapter_number: Mapped[int] = mapped_column(Integer, nullable=False)
     reference: Mapped[str] = mapped_column(String(80), nullable=False)
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
